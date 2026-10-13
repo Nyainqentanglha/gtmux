@@ -267,3 +267,10 @@ driver, stage, and result (not only the exit code).
 
 - **WHEN** cmux cannot return its tree or currently focused terminal
 - **THEN** `IsViewing` returns false rather than suppressing a notification
+
+#### Scenario: cmux remains selected in the background
+
+- **WHEN** a cmux tree surface matches the session but cmux is not the frontmost
+  application, or its frontmost state cannot be confirmed
+- **THEN** `IsViewing` returns false so completion and needs-input notifications
+  are not suppressed

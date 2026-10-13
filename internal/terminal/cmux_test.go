@@ -134,6 +134,7 @@ func TestCmuxViewingByTTYAndOrder(t *testing.T) {
 	allClientTTYSessions = func() map[string]string {
 		return map[string]string{"ttys019": "work", "ttys020": "one"}
 	}
+	osa = func(string) (string, error) { return "true", nil }
 	if !(cmux{}).IsViewing("work") || (cmux{}).IsViewing("other") {
 		t.Fatal("focused cmux surface was not matched by tty")
 	}
@@ -145,6 +146,54 @@ func TestCmuxViewingByTTYAndOrder(t *testing.T) {
 	osa = func(string) (string, error) { return "", errors.New("cmux unavailable") }
 	if (cmux{}).IsViewing("work") || (cmux{}).TabOrder() != nil {
 		t.Fatal("unavailable cmux must not suppress notification or invent order")
+	}
+}
+
+func TestCmuxViewingRequiresFrontmost(t *testing.T) {
+	for _, route := range []string{"tree TTY", "tree title", "AppleScript fallback"} {
+		for _, tc := range []struct {
+			name  string
+			reply string
+			err   error
+			want  bool
+		}{
+			{"foreground", "true", nil, true},
+			{"background", "false", nil, false},
+			{"empty state", "", nil, false},
+			{"unknown state", "unknown", nil, false},
+			{"unavailable state", "", errors.New("AppleScript denied"), false},
+		} {
+			t.Run(route+"/"+tc.name, func(t *testing.T) {
+				oldCLI, oldTTY, oldOSA := cmuxCLI, clientTTYsFor, osa
+				t.Cleanup(func() { cmuxCLI, clientTTYsFor, osa = oldCLI, oldTTY, oldOSA })
+				cmuxCLI = func(...string) ([]byte, error) {
+					if route == "AppleScript fallback" {
+						return nil, errNoCmuxCLI
+					}
+					tree := `{"active":{"surface_id":"work"},"windows":[{"workspaces":[{"panes":[{"surfaces":[
+					  {"id":"work","title":"host:~","tty":"ttys019","type":"terminal"}
+					]}]}]}]}`
+					if route == "tree title" {
+						tree = strings.ReplaceAll(tree, "host:~", "work — shell")
+						tree = strings.ReplaceAll(tree, "ttys019", "")
+					}
+					return []byte(tree), nil
+				}
+				clientTTYsFor = func(string) []string { return []string{"ttys019"} }
+				osa = func(script string) (string, error) {
+					if strings.Contains(script, "return frontmost") {
+						return tc.reply, tc.err
+					}
+					if tc.want {
+						return "work — shell", nil
+					}
+					return "", tc.err
+				}
+				if got := (cmux{}).IsViewing("work"); got != tc.want {
+					t.Fatalf("IsViewing = %v, want %v", got, tc.want)
+				}
+			})
+		}
 	}
 }
 

@@ -69,6 +69,11 @@ end tell`)
 }
 
 func (cmux) IsViewing(session string) bool {
+	// A selected tree surface can remain selected while cmux is in the background.
+	out, err := osa(`tell application id "com.cmuxterm.app" to return frontmost`)
+	if err != nil || out != "true" {
+		return false
+	}
 	surfaces, activeID, err := listCmuxSurfaces()
 	if err == nil {
 		want := map[string]bool{}
@@ -96,7 +101,7 @@ func (cmux) IsViewing(session string) bool {
 			return false
 		}
 	}
-	out, err := osa(`tell application id "com.cmuxterm.app"
+	out, err = osa(`tell application id "com.cmuxterm.app"
   if it is not frontmost then return ""
   try
     return name of focused terminal of selected tab of front window
