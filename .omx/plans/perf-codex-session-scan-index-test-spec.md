@@ -54,11 +54,10 @@ Do not assert wall-clock duration in unit tests.
 Primary locations: `internal/transcript/transcript_test.go`, `internal/transcript/sessionbinding_test.go`, and `internal/transcript/codex_client_test.go`.
 
 - Direct and scoped `LastMessageTime` return the same latest timestamp across base plus continuation.
-- Direct and scoped `FirstMessageTime` return the same earliest timestamp.
 - Direct and scoped last turn boundary select the latest `task_started`, `task_complete`, or `turn_aborted` across rollouts.
 - Scoped identity/client accepts both metadata ID spellings and rejects filename/metadata mismatch.
 - Scoped binding prompt lookup combines accepted rollouts and ignores a mismatched continuation.
-- Scoped error/loading reads use current file contents rather than a cached status result.
+- Codex `LastMessageError` remains `(false, "")` without triggering candidate discovery in the gather path.
 - Existing public direct functions remain fresh when called outside a gather.
 
 ## Radar integration tests
@@ -87,11 +86,13 @@ Assert:
 
 - the entire `GatherAgents()` call performs one Codex candidate discovery;
 - the Claude row still calls its existing resolver and does not enter the Codex index;
+- `CodexBindingForSession` and `CompleteCodexBinding` both use the scoped resolver and do not increment discovery count beyond the gather's single enumeration;
 - a second `GatherAgents()` call creates a new scope and increments the discovery count once more.
 
 ### Concurrency
 
 - Run two resolver scopes concurrently against the same fixture and compare complete results.
+- Exercise repeated concurrent calls on a single scope if the scoped reader is shareable within one gather; otherwise assert/document serialized ownership and keep all internal callers serial.
 - If practical with existing radar test seams, run concurrent gathers using isolated fixture state; otherwise keep concurrency at transcript scope and rely on full `-race` coverage for radar.
 - There must be no global current-resolver variable or mutable shared map.
 
@@ -126,16 +127,16 @@ Any output from `gofmt -l` is a failure.
 
 Use the built optimization CLI against the same Codex home used for the baseline.
 
-1. Start an independent monitor sampling gtmux bundle process count at 250 ms or faster.
-2. Configure the guard to terminate the validation workload before the count can exceed 10.
-3. Run enough `agents --json` invocations to capture multiple complete samples.
-4. Record per invocation start/end, elapsed time, CPU time, exit code, and maximum process count.
+1. Before editing, capture at least five baseline `agents --json` samples; repeat after the implementation with the same `CODEX_HOME` and workload.
+2. Start an independent monitor sampling all live processes whose executable or command identifies this gtmux checkout or app bundle at 250 ms or faster.
+3. Stop launching additional validation work when the count reaches 9, leaving one-process headroom; terminate the workload if the count reaches 10.
+4. Record active Codex session count, per invocation elapsed time and CPU time, exit code, and maximum process count; summarize median and p95 before/after.
 5. Confirm JSON is valid and representative normalized fields/order match the baseline.
-6. Report structural discovery count separately from timing. Timing is supporting evidence, not the correctness gate.
+6. Report structural discovery count separately from timing. Timing is supporting evidence for whether one per-gather enumeration meets the observed workload.
 
 Pass conditions:
 
-- Maximum gtmux process count is `<= 10`.
+- Maximum gtmux process count is `<= 10`; the guard stops new work at 9 and terminates at 10.
 - No overlapping/process growth regression appears during the monitored run.
 - Candidate discovery is once per Codex-using gather.
 - Targeted and full race tests pass.
