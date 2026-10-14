@@ -27,3 +27,14 @@ An independent monitor counted live processes whose executable/command identifie
 ## Interpretation
 
 The final run confirms one candidate-tree discovery per gather is sufficient for this workload. This optimization still enumerates inactive rollout filenames once per gather; it does not add cross-gather caching. Runtime samples are local-machine measurements and will vary with machine load and active session set.
+
+## Clean local-install observation
+
+After the test fix was committed, `make install` installed the clean commit to `/Users/zhangyong23/.local/bin/gtmux` (`gtmux v1.0.115-5-g57edd25f`). Twenty consecutive `agents --json` invocations used the same `$HOME/.codex`. All exited 0, returned valid JSON, and reported 21 Codex rows.
+
+| Metric | 20-run median | p95 (nearest rank) |
+|---|---:|---:|
+| Elapsed time | 0.0973 s | 0.1056 s |
+| Child CPU time | 0.0882 s | 0.0935 s |
+
+An independent monitor counted processes whose executable identified the CLI, checkout, or Gtmux app bundle every 100 ms. Per-scan post-run counts ranged from 3 to 5; the monitor peak was 6, the count ended at 3, and the stop-at-9 / terminate-at-10 guard did not trigger. The count did not increase across the repeated scans.
