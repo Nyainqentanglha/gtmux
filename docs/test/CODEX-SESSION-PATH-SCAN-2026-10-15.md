@@ -30,7 +30,7 @@ The final run confirms one candidate-tree discovery per gather is sufficient for
 
 ## Clean local-install observation
 
-After the test fix was committed, `make install` installed the clean commit to `/Users/zhangyong23/.local/bin/gtmux` (`gtmux v1.0.115-5-g57edd25f`). Twenty consecutive `agents --json` invocations used the same `$HOME/.codex`. All exited 0, returned valid JSON, and reported 21 Codex rows.
+After the test fix was committed, `make install` installed the clean commit to the local gtmux CLI path (`gtmux v1.0.115-5-g57edd25f`). Twenty consecutive `agents --json` invocations used the same Codex home. All exited 0, returned valid JSON, and reported 21 Codex rows.
 
 | Metric | 20-run median | p95 (nearest rank) |
 |---|---:|---:|

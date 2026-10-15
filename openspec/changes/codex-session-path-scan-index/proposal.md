@@ -1,4 +1,33 @@
-# Codex Session Path Scan Optimization Plan
+# Codex Session Path Scan Index
+
+## Why
+
+`GatherAgents()` repeatedly traversed the Codex session tree while resolving different
+facts for the same sessions. On the observed machine, a single `agents --json` call took
+several seconds with 20 active Codex sessions.
+
+## What changes
+
+Use a lazy, gather-owned Codex path index so one gather enumerates candidate rollout
+paths once and reuses resolved paths for its transcript reads. Continue reading mutable
+transcript contents on demand. Preserve existing session matching, ordering, radar output,
+and non-Codex behavior.
+
+## Impact
+
+Internal implementation change to `agent-radar`, Codex transcript lookup, and Codex
+binding recovery. No CLI/API schema or user-visible behavior changes. Detailed design,
+compatibility boundaries, and performance evidence follow below. Test cases are in
+[`test-spec.md`](./test-spec.md); measured results are in
+[`docs/test/CODEX-SESSION-PATH-SCAN-2026-10-15.md`](../../../docs/test/CODEX-SESSION-PATH-SCAN-2026-10-15.md).
+
+## Surfaces
+
+- **Terminal / CLI:** no output or command changes.
+- **Menu bar:** no display or interaction changes.
+- **Phone:** no display or interaction changes.
+- **iPad:** no display or interaction changes.
+- **Web:** no display or interaction changes.
 
 ## Outcome
 
@@ -6,7 +35,7 @@ Reduce repeated Codex sessions-tree traversal during one `GatherAgents()` call w
 
 - Base: `origin/main` at `18b54e5c13248a594121b238bf5ac1b367acd7f9`
 - Branch: `perf/codex-session-scan-index`
-- Test specification: [perf-codex-session-scan-index-test-spec.md](./perf-codex-session-scan-index-test-spec.md)
+- Test specification: [test-spec.md](./test-spec.md)
 
 ## Evidence and Current Mechanism
 
@@ -34,7 +63,7 @@ Reduce repeated Codex sessions-tree traversal during one `GatherAgents()` call w
 - Changes to `agents --json`, HTTP payloads, refresh intervals, native-record expiry, or menu behavior.
 - A redesign of transcript loading outside the radar/gather request path.
 
-## RALPLAN-DR (Short)
+## Design considerations
 
 ### Principles
 
@@ -239,9 +268,3 @@ It provides a structural one-discovery-per-gather bound while keeping freshness 
 
 - After merge, compare local `agents --json` latency and server CPU with the recorded baseline; do not add a longer-lived cache unless evidence still requires it.
 - If transcript content reads become the next bottleneck, plan that separately with file revision based invalidation; it is not part of this change.
-
-## Handoff Guidance
-
-- Suggested executor: one `executor` at medium reasoning owns transcript resolver plus radar wiring to avoid shared-file conflicts.
-- Suggested verification: one `test-engineer` or `verifier` at high reasoning reviews edge-case coverage, scan-count proof, race output, and Claude exclusion after implementation.
-- This is a performance task with a measurable evaluator, so `$performance-goal` is the appropriate durable follow-up if ongoing before/after measurements are required. For ordinary implementation plus PR, a focused executor followed by verifier is sufficient; a multi-worker team is unnecessary for the overlapping files.
