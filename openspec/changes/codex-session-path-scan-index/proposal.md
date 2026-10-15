@@ -23,9 +23,9 @@ compatibility boundaries, and performance evidence follow below. Test cases are 
 
 ## Surfaces
 
-- **Terminal / CLI:** no output or command changes.
-- **Menu bar:** no display or interaction changes.
-- **Phone:** no display or interaction changes.
+- **终端 / terminal:** no output or command changes.
+- **菜单栏 / menubar:** no display or interaction changes.
+- **手机 / phone:** no display or interaction changes.
 - **iPad:** no display or interaction changes.
 - **Web:** no display or interaction changes.
 
